@@ -4,7 +4,7 @@ import express from 'express'
 // Constants
 const isProduction = process.env.NODE_ENV === 'production'
 const port = process.env.PORT || 5173
-const base = process.env.BASE || '/'
+const base = process.env.BASE || '/demo'
 
 // Cached production assets
 const templateHtml = isProduction
@@ -16,6 +16,7 @@ const ssrManifest = isProduction
 
 // Create http server
 const app = express()
+const router = express.Router()
 
 // Add Vite or respective production middlewares
 let vite
@@ -24,18 +25,20 @@ if (!isProduction) {
   vite = await createServer({
     server: { middlewareMode: true },
     appType: 'custom',
-    base
+    base: '/'
   })
-  app.use(vite.middlewares)
+  console.log('middlewares==>', vite.middlewares)
+
+  router.use(vite.middlewares)
 } else {
   const compression = (await import('compression')).default
   const sirv = (await import('sirv')).default
   app.use(compression())
-  app.use(base, sirv('./dist/client', { extensions: [] }))
+  router.use(sirv('./dist/client', { extensions: [] }))
 }
 
 // Serve HTML
-app.use('*', async (req, res) => {
+router.use('*', async (req, res) => {
   try {
     const url = req.originalUrl.replace(base, '')
 
@@ -64,6 +67,12 @@ app.use('*', async (req, res) => {
     res.status(500).end(e.stack)
   }
 })
+
+app.use(base, router);
+
+app.get('/', (req, res) => {
+  res.redirect(base);
+});
 
 // Start http server
 app.listen(port, () => {
